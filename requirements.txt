@@ -1,0 +1,17 @@
+DateTime==5.2
+et-xmlfile==1.1.0
+greenlet==3.0.1
+numpy==1.26.1
+openpyxl==3.1.2
+pandas==2.1.2
+PyMySQL==1.1.0
+pyodbc==5.0.1
+pyssql==1.0.0
+python-dateutil==2.8.2
+pytz==2023.3.post1
+six==1.16.0
+SQLAlchemy==2.0.23
+typing_extensions==4.8.0
+tzdata==2023.3
+zope.interface==6.1
+dotenv

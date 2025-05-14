@@ -1,0 +1,7 @@
+# Ignorar archivos sensibles en Git
+
+.env
+.venv
+
+cierres.ipynb
+main.ipynb
