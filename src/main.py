@@ -1,4 +1,4 @@
-import database as db
+import src.database as db
 import pandas as pd
 import sqlalchemy as sa
 
