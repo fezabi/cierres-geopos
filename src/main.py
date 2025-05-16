@@ -382,10 +382,9 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             df_depositos.to_sql('cierres_depositos', eng_dw, if_exists='append', index=False, schema='modelo_ventas_rauco')
 
         if "GUIAS" in modulos:
-            
+    
             print(f">> Ejecutando Guias", flush=True)
-            
-            """GUIAS"""
+
             query = f"""
                 SELECT
                     tickets.localid as localid,
@@ -445,20 +444,38 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             df_guias['sendstate'] = 0
             df_guias['sendresponse'] = 0
 
-            # Ordenar columnas para insertar
-            cols_order = [
-                'id', 'localid', 'pos', 'opened', 'closed', 'ticketnumberopened', 'ticketnumberclosed', 'z',
-                'documentnumber', 'position', 'item', 'quantity', 'amount', 'date', 'hour', 'patent',
-                'sendstate', 'sendresponse', 'localiddestino'
+            # Definir columnas fijas y adicionales para cada tabla
+            columnas_comunes = [
+                'id', 'localid', 'pos', 'opened', 'closed',
+                'ticketnumberopened', 'ticketnumberclosed', 'z',
+                'sendstate', 'sendresponse', 'documentnumber'
             ]
 
-            # Asegurar que todas las columnas existen antes de ordenar
-            cols_existentes = [col for col in cols_order if col in df_guias.columns]
+            columnas_guias = columnas_comunes + ['date', 'hour', 'patent', 'localiddestino']
+            columnas_guias_detalle = columnas_comunes + ['position', 'item', 'quantity', 'amount']
 
-            df_guias = df_guias[cols_existentes]
+            # Separar en cabecera y detalle
+            df_guias_cabecera = df_guias[columnas_guias].drop_duplicates()
+            df_guias_detalle = df_guias[columnas_guias_detalle]
 
-            df_guias.to_sql('cierres_guias', eng_dw, if_exists='append', index=False, schema='modelo_ventas_rauco')
-    
+            # Guardar en la base de datos
+            df_guias_cabecera.to_sql(
+                'cierres_guias',
+                eng_dw,
+                if_exists='append',
+                index=False,
+                schema='modelo_ventas_rauco'
+            )
+
+            df_guias_detalle.to_sql(
+                'cierres_guias_detalle',
+                eng_dw,
+                if_exists='append',
+                index=False,
+                schema='modelo_ventas_rauco'
+            )
+
+        
         print(f">> Ejecución finalizada.", flush=True)
         
 def procesar_cierres(config):
