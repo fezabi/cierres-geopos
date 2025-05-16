@@ -399,7 +399,7 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     CONVERT(varchar(8), tickets.opendate, 108) AS hour,
                     dispatchguide.patent,
                     CASE
-                        WHEN dispatchguide.patent IN(2,5) THEN
+                        WHEN dispatchguide.patent IN(2,6) THEN
                             CASE
                                 WHEN (SELECT id FROM geopos2server.dbo.DG_LocalDeliveryAddress d WHERE UPPER(d.address) = dispatchguide.deliveryAddress) IS NULL THEN 0
                                 ELSE (SELECT id FROM geopos2server.dbo.DG_LocalDeliveryAddress d WHERE UPPER(d.address) = dispatchguide.deliveryAddress)
