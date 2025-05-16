@@ -397,7 +397,15 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     CAST(ticketitems.amount as int) AS amount,
                     CONVERT(date, tickets.opendate, 112) AS date,
                     CONVERT(varchar(8), tickets.opendate, 108) AS hour,
-                    dispatchguide.patent
+                    dispatchguide.patent,
+                    CASE
+                        WHEN dispatchguide.patent IN(2,5) THEN
+                            CASE
+                                WHEN (SELECT id FROM geopos2server.dbo.DG_LocalDeliveryAddress d WHERE UPPER(d.address) = dispatchguide.deliveryAddress) IS NULL THEN 0
+                                ELSE (SELECT id FROM geopos2server.dbo.DG_LocalDeliveryAddress d WHERE UPPER(d.address) = dispatchguide.deliveryAddress)
+                            END
+                        ELSE tickets.localid
+                    END localiddestino
                 FROM geopos2server.dbo.tickets (NOLOCK)
                 INNER JOIN geopos2server.dbo.ticketitems (NOLOCK)
                     ON tickets.opendate = ticketitems.opendate
@@ -441,7 +449,7 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             cols_order = [
                 'id', 'localid', 'pos', 'opened', 'closed', 'ticketnumberopened', 'ticketnumberclosed', 'z',
                 'documentnumber', 'position', 'item', 'quantity', 'amount', 'date', 'hour', 'patent',
-                'sendstate', 'sendresponse'
+                'sendstate', 'sendresponse', 'localiddestino'
             ]
 
             # Asegurar que todas las columnas existen antes de ordenar
