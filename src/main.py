@@ -51,13 +51,18 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     SUM(ticketitems.signednationalamount) AS amount,
                     tickets.invoiceType,
                     tickets.documenttype,
-                    SUM(tickets.rounded) AS rounded
+                    SUM(tickets.rounded) AS rounded,
+                    measures.id idmeasure,
+                    measures.name descripcion,
+                    measures.decimals
                 FROM tickets
                 INNER JOIN ticketitems  
                     ON tickets.opendate = ticketitems.opendate  
                     AND tickets.ticketnumber = ticketitems.ticketnumber  
                     AND tickets.localid = ticketitems.localid  
                     AND tickets.pos = ticketitems.pos
+                JOIN measures
+   	                ON measures.id = ticketitems.measure
                 WHERE tickets.localid = {localid}
                     AND tickets.pos = {pos}
                     AND tickets.ticketnumber BETWEEN {ticketnumber_opened} AND {ticketnumber_closed}
@@ -65,7 +70,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     AND tickets.invoiceType IN ('TEL', 'ICAE')
                 GROUP BY tickets.opendate, tickets.ticketnumber, tickets.localid, tickets.pos,
                         tickets.document, ticketitems.item, ticketitems.description,
-                        ticketitems.unitamount, tickets.invoiceType, tickets.documenttype
+                        ticketitems.unitamount, tickets.invoiceType, tickets.documenttype, 
+                        measures.id, measures.name, measures.decimals
             """, eng_geocom)
             
             # Query de descuentos
@@ -153,7 +159,10 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     'grossamount': product.item_amount,  # Total con IVA
                     'taxamount': tax_amount,             # IVA calculado
                     'netamount': net_amount,             # Neto (sin IVA)
-                    'invoicetype': product.invoiceType
+                    'invoicetype': product.invoiceType,
+                    'idmeasure': product.idmeasure,
+                    'descripcion': product.idmeasure,
+                    'decimals': product.idmeasure
                 }
 
                 detalles.append(product_detail)
