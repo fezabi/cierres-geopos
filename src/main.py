@@ -161,8 +161,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     'netamount': net_amount,             # Neto (sin IVA)
                     'invoicetype': product.invoiceType,
                     'idmeasure': product.idmeasure,
-                    'descripcion': product.idmeasure,
-                    'decimals': product.idmeasure
+                    'descripcion': product.descripcion,
+                    'decimals': product.decimals
                 }
 
                 detalles.append(product_detail)
