@@ -515,8 +515,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             df_guias_cabecera = df_guias[columnas_guias].drop_duplicates()
             df_guias_detalle = df_guias[columnas_guias_detalle]
             
-            df_guias_detalle['netamount'] = df_guias_detalle['amount'] / (1 + IVA_RATE)  # Neto (sin IVA)
-            df_guias_detalle['taxamount'] = df_guias_detalle['amount'] - df_guias_detalle['netamount']  # IVA calculado
+            df_guias_detalle['netamount'] = round(df_guias_detalle['amount'] / (1 + IVA_RATE), 3)  # Neto (sin IVA)
+            df_guias_detalle['taxamount'] = round(df_guias_detalle['amount'] - df_guias_detalle['netamount'], 3)  # IVA calculado
 
             # Guardar en la base de datos
             df_guias_cabecera.to_sql(
