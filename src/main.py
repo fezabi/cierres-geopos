@@ -218,15 +218,17 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                 'discountamount': 'sum',
                 'grossamount': 'sum',
                 'taxamount': 'sum',
-                'netamount': 'sum'
-            })
+                'netamount': 'sum',
+                'discounttaxamount': 'sum',
+                'discountnetamount': 'sum'
+            }).round(3)
             
             df_precios_group = df_precios.groupby(campos_grupo_precios, as_index=False).agg({
                 'unitamount': 'mean',
                 'netunitamount': 'mean',
                 'taxunitamount': 'mean',
                 'discountamount': 'mean'
-            })
+            }).round(3)
 
             # Guardamos el detalle en la base de datos
             df_detalles_group.to_sql('cierres_detalle', eng_dw,if_exists='append', index=False, schema='modelo_ventas_rauco')
