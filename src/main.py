@@ -192,7 +192,7 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             
             campos_grupo = [
                 'id', 'localid', 'pos', 'opened', 'closed',
-                'ticketnumberopened', 'ticketnumberclosed', 'ticketnumber',
+                'ticketnumberopened', 'ticketnumberclosed',
                 'z', 'item', 'description', 'invoicetype'
             ]
 
