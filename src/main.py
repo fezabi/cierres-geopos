@@ -181,13 +181,18 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                 }
 
                 detalles.append(product_detail)
-                precios.append(precio_product)
-                
+                precios.append(precio_product)                
 
             # Una sola escritura a base de datos
             df_detalles = pd.DataFrame(detalles)            
             df_precios = pd.DataFrame(precios)
             
+            # Verificamos si hay datos para evitar errores
+            if df_detalles.empty or df_precios.empty:
+                print(f">> No hay datos de ventas para el cierre {index}. Saltando...")
+                continue
+            
+            # Agrupamos los detalles y precios por campos comunes                        
             campos_grupo_detalle = [
                 'id', 'localid', 'pos', 'opened', 'closed',
                 'ticketnumberopened', 'ticketnumberclosed',
@@ -200,7 +205,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                 'z', 'item', 'description', 
                 'idmeasure', 'descripcion', 'decimals'
             ]
-
+            
+            # Agrupamos los detalles y precios
             df_detalles_group = df_detalles.groupby(campos_grupo_detalle, as_index=False).agg({
                 'umquantity': 'sum',
                 'discountamount': 'sum',
@@ -515,6 +521,7 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             df_guias_cabecera = df_guias[columnas_guias].drop_duplicates()
             df_guias_detalle = df_guias[columnas_guias_detalle]
             
+            df_guias_detalle = df_guias_detalle.copy()
             df_guias_detalle['netamount'] = round(df_guias_detalle['amount'] / (1 + IVA_RATE), 3)  # Neto (sin IVA)
             df_guias_detalle['taxamount'] = round(df_guias_detalle['amount'] - df_guias_detalle['netamount'], 3)  # IVA calculado
 
