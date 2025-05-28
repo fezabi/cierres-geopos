@@ -139,6 +139,9 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                 
                 net_amount = round(product.item_amount / (1 + IVA_RATE), 3)  # Neto (sin IVA)
                 tax_amount = round(product.item_amount - net_amount, 3)     # IVA calculado
+                
+                tax_amount_discount = round(product.discountamount * IVA_RATE / (1 + IVA_RATE), 3)  # IVA calculado del descuento
+                net_amount_discount = round(product.discountamount - tax_amount_discount, 3)  # Neto del descuento
 
                 product_detail = {
                     'id': id,
@@ -153,6 +156,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     'description': product.description,
                     'umquantity': product.umquantity,
                     'discountamount': product.discountamount,
+                    'discounttaxamount': tax_amount_discount,  # IVA calculado del descuento
+                    'discountnetamount': net_amount_discount,  # Neto del descuento
                     'grossamount': product.item_amount,  # Total con IVA
                     'taxamount': tax_amount,             # IVA calculado
                     'netamount': net_amount,             # Neto (sin IVA)
@@ -177,7 +182,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     'decimals': product.decimals,
                     'unitamount': product.unitamount,
                     'netunitamount': net_unitamount,
-                    'taxunitamount': tax_unitamount
+                    'taxunitamount': tax_unitamount,
+                    'discountamount': product.discountamount,
                 }
 
                 detalles.append(product_detail)
@@ -218,7 +224,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             df_precios_group = df_precios.groupby(campos_grupo_precios, as_index=False).agg({
                 'unitamount': 'mean',
                 'netunitamount': 'mean',
-                'taxunitamount': 'mean'
+                'taxunitamount': 'mean',
+                'discountamount': 'mean'
             })
 
             # Guardamos el detalle en la base de datos
