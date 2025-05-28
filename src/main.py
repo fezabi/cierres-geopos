@@ -128,6 +128,7 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             gross_amount_tot = gross_amount_bol + gross_amount_fac
 
             detalles = []
+            precios = []
 
             # Para cada producto (detalle de ventas)
             for product in df_ventas_realizadas.itertuples(index=False):
@@ -152,26 +153,62 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     'item': product.item,
                     'description': product.description,
                     'umquantity': product.umquantity,
-                    'unitamount': product.unitamount,
-                    'netunitamount': net_unitamount,
-                    'taxunitamount': tax_unitamount,
                     'discountamount': product.discountamount,
                     'grossamount': product.item_amount,  # Total con IVA
                     'taxamount': tax_amount,             # IVA calculado
                     'netamount': net_amount,             # Neto (sin IVA)
-                    'invoicetype': product.invoiceType,
+                    'invoicetype': product.invoiceType
+                    # 'sendstate': '0',
+                    # 'sendresponse': '0',
+                }
+                
+                precio_product = {
+                    'id': id,
+                    'localid': localid,
+                    'pos': pos,
+                    'opened': opened,
+                    'closed': closed,
+                    'ticketnumberopened': ticketnumber_opened,
+                    'ticketnumberclosed': ticketnumber_closed,
+                    'ticketnumber': product.ticketnumber,
+                    'z': z,
+                    'item': product.item,
+                    'description': product.description,
                     'idmeasure': product.idmeasure,
                     'descripcion': product.descripcion,
-                    'decimals': product.decimals
+                    'decimals': product.decimals,
+                    'unitamount': product.unitamount,
+                    'netunitamount': net_unitamount,
+                    'taxunitamount': tax_unitamount
                 }
 
                 detalles.append(product_detail)
+                precios.append(precio_product)
+                
 
             # Una sola escritura a base de datos
             df_detalles = pd.DataFrame(detalles)
+            
+            df_precios_detalle = pd.DataFrame(precios)
+            
+            campos_grupo = [
+                'id', 'localid', 'pos', 'opened', 'closed',
+                'ticketnumberopened', 'ticketnumberclosed', 'ticketnumber',
+                'z', 'item', 'description', 'idmeasure', 'descripcion', 'decimals'
+            ]
+
+            df_precios_group = df_precios_detalle.groupby(campos_grupo, as_index=False).agg({
+                'unitamount': 'sum',
+                'netunitamount': 'sum',
+                'taxunitamount': 'sum'
+            })
+
 
             # Guardamos el detalle en la base de datos
             df_detalles.to_sql('cierres_detalle', eng_dw,if_exists='append', index=False, schema='modelo_ventas_rauco')
+            
+            # Guardamos los precios del detalle en la base de datos
+            df_precios_group.to_sql('cierres_precio_producto', eng_dw,if_exists='append', index=False, schema='modelo_ventas_rauco')
             
             # Calculamos los montos totales para boleta y factura
             net_amount_boleta = round(gross_amount_bol / (1 + IVA_RATE), 3)  # Neto (sin IVA)
