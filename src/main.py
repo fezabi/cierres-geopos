@@ -197,7 +197,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             campos_grupo_precios = [
                 'id', 'localid', 'pos', 'opened', 'closed',
                 'ticketnumberopened', 'ticketnumberclosed',
-                'z', 'item', 'description', 'idmeasure', 'descripcion', 'decimals'
+                'z', 'item', 'description', 
+                'idmeasure', 'descripcion', 'decimals'
             ]
 
             df_detalles_group = df_detalles.groupby(campos_grupo_detalle, as_index=False).agg({
@@ -209,9 +210,9 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             })
             
             df_precios_group = df_precios.groupby(campos_grupo_precios, as_index=False).agg({
-                'unitamount': 'sum',
-                'netunitamount': 'sum',
-                'taxunitamount': 'sum'
+                'unitamount': 'mean',
+                'netunitamount': 'mean',
+                'taxunitamount': 'mean'
             })
 
             # Guardamos el detalle en la base de datos
