@@ -169,7 +169,6 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     'closed': closed,
                     'ticketnumberopened': ticketnumber_opened,
                     'ticketnumberclosed': ticketnumber_closed,
-                    'ticketnumber': product.ticketnumber,
                     'z': z,
                     'item': product.item,
                     'description': product.description,
@@ -186,30 +185,40 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                 
 
             # Una sola escritura a base de datos
-            df_detalles = pd.DataFrame(detalles)
-            
+            df_detalles = pd.DataFrame(detalles)            
             df_precios = pd.DataFrame(precios)
             
-            campos_grupo = [
+            campos_grupo_detalle = [
                 'id', 'localid', 'pos', 'opened', 'closed',
                 'ticketnumberopened', 'ticketnumberclosed',
                 'z', 'item', 'description', 'invoicetype'
             ]
+            
+            campos_grupo_precios = [
+                'id', 'localid', 'pos', 'opened', 'closed',
+                'ticketnumberopened', 'ticketnumberclosed',
+                'z', 'item', 'description', 'idmeasure', 'descripcion', 'decimals'
+            ]
 
-            df_detalles_group = df_detalles.groupby(campos_grupo, as_index=False).agg({
+            df_detalles_group = df_detalles.groupby(campos_grupo_detalle, as_index=False).agg({
                 'umquantity': 'sum',
                 'discountamount': 'sum',
                 'grossamount': 'sum',
                 'taxamount': 'sum',
                 'netamount': 'sum'
             })
-
+            
+            df_precios_group = df_precios.groupby(campos_grupo_precios, as_index=False).agg({
+                'unitamount': 'sum',
+                'netunitamount': 'sum',
+                'taxunitamount': 'sum'
+            })
 
             # Guardamos el detalle en la base de datos
             df_detalles_group.to_sql('cierres_detalle', eng_dw,if_exists='append', index=False, schema='modelo_ventas_rauco')
             
             # Guardamos los precios del detalle en la base de datos
-            df_precios.to_sql('cierres_precio_producto', eng_dw,if_exists='append', index=False, schema='modelo_ventas_rauco')
+            df_precios_group.to_sql('cierres_precio_producto', eng_dw,if_exists='append', index=False, schema='modelo_ventas_rauco')
             
             # Calculamos los montos totales para boleta y factura
             net_amount_boleta = round(gross_amount_bol / (1 + IVA_RATE), 3)  # Neto (sin IVA)
