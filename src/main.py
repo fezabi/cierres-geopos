@@ -2,16 +2,24 @@ import src.database as db
 import pandas as pd
 import sqlalchemy as sa
 
+# eng_geocom = db.get_connection('geocom')
 eng_geocom = db.get_connection('geocom')
 eng_dw = db.get_connection('dw')
 
 def ejecutar_etl(df_totals, IVA_RATE, modulos):
     # for row in df_totals.itertuples(index=False):
+    
+    
+    df_totals["opened_fmt"] = pd.to_datetime(df_totals["opened"]).dt.strftime('%Y%m%d')
+    df_totals["closed_fmt"] = pd.to_datetime(df_totals["closed"]).dt.strftime('%Y%m%d')
+    
     for index, row in df_totals.iterrows():
         index += 1
         # Extraer variables necesarias
         opened = row.opened
         closed = row.closed
+        opened_fmt = row.opened_fmt
+        closed_fmt = row.closed_fmt
         ticketnumber_opened = row.ticketnumber_opened
         ticketnumber_closed = row.ticketnumber_closed
         localid = row.localid
@@ -66,6 +74,7 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                 WHERE tickets.localid = {localid}
                     AND tickets.pos = {pos}
                     AND tickets.ticketnumber BETWEEN {ticketnumber_opened} AND {ticketnumber_closed}
+                    AND CAST(CONVERT(VARCHAR, tickets.opendate, 112) AS INT) BETWEEN {opened_fmt} AND {closed_fmt}
                     AND tickets.documenttype IN('sale', 'sale-cancel')
                     AND tickets.invoiceType IN ('TEL', 'ICAE')
                 GROUP BY tickets.opendate, tickets.ticketnumber, tickets.localid, tickets.pos,
@@ -88,6 +97,7 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                 WHERE discounts.localid = {localid}
                     AND discounts.pos = {pos}
                     AND discounts.ticketnumber BETWEEN {ticketnumber_opened} AND {ticketnumber_closed}
+                    AND CAST(CONVERT(VARCHAR, discounts.opendate, 112) AS INT) BETWEEN {opened_fmt} AND {closed_fmt}
                 GROUP BY CAST(replace(convert(varchar, discounts.opendate, 101), '/', '') 
                         + replace(convert(varchar, discounts.opendate, 108), ':', '') AS varchar)
                         + '.' + CAST(discounts.ticketnumber AS varchar)
@@ -109,6 +119,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
 
             # Calculamos el monto por item
             df_ventas_realizadas['item_amount'] = df_ventas_realizadas['amount'] - df_ventas_realizadas['discountamount']
+            
+            df_ventas_realizadas.loc[df_ventas_realizadas["item_amount"] == 0, "item_amount"] = 1
             
             # Reemplazar NaN en discountamount con 0
             df_ventas_canceladas['discountamount'] = df_ventas_canceladas['discountamount'].fillna(0)
@@ -223,6 +235,9 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                 'discountnetamount': 'sum'
             }).round(3)
             
+            # Eliminar registros donde umquantity es 0
+            df_detalles_group = df_detalles_group[df_detalles_group['umquantity'] != 0]
+            
             df_precios_group = df_precios.groupby(campos_grupo_precios, as_index=False).agg({
                 'unitamount': 'mean',
                 'netunitamount': 'mean',
@@ -282,8 +297,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             
             print(f">> Ejecutando Medios de Pago", flush=True)
             
-            df_payments = pd.read_sql(f"""SELECT id FROM paymentmodes WHERE eliminated = 0 AND id NOT IN(40)""", eng_geocom)
-            payments_str = ','.join(map(str, df_payments['id'].tolist()))
+            # df_payments = pd.read_sql(f"""SELECT id FROM paymentmodes WHERE eliminated = 0 AND id NOT IN(40)""", eng_geocom)
+            # payments_str = ','.join(map(str, df_payments['id'].tolist()))
             
             """MEDIOS DE PAGO"""
         
@@ -306,7 +321,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     AND tickets.pos = {pos}
                     AND ISNUMERIC(tickets.ticketnumber) = 1
                     AND CAST(tickets.ticketnumber AS INT) BETWEEN {ticketnumber_opened} AND {ticketnumber_closed}
-                    AND paymentmodes.id IN ({payments_str})
+                    AND CAST(CONVERT(VARCHAR, tickets.opendate, 112) AS INT) BETWEEN {opened_fmt} AND {closed_fmt}
+                    AND paymentmodes.id NOT IN (40)
                     AND tickets.documenttype = 'sale'
                 GROUP BY paymentmodes.id, paymentmodes.name, payments.cardtypespdh4, tickets.invoiceType
             """
@@ -365,6 +381,7 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                 WHERE tickets.localid = {localid}
                     AND tickets.pos = {pos}
                     AND tickets.ticketnumber BETWEEN {ticketnumber_opened} AND {ticketnumber_closed}
+                    AND CAST(CONVERT(VARCHAR, tickets.opendate, 112) AS INT) BETWEEN {opened_fmt} AND {closed_fmt}
                     AND tickets.documenttype IN('sale')
                     AND tickets.invoiceType IN ('TEL', 'ICAE')
                 GROUP BY tickets.localid, tickets.pos, tickets.invoiceType
@@ -420,7 +437,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                 WHERE tickets.localid = {localid}
                     AND tickets.pos = {pos}
                     AND tickets.documenttype = 'deposit'
-                    AND CAST(tickets.ticketnumber AS INT) BETWEEN {ticketnumber_opened} AND {ticketnumber_closed}"""
+                    AND CAST(tickets.ticketnumber AS INT) BETWEEN {ticketnumber_opened} AND {ticketnumber_closed}
+                    AND CAST(CONVERT(VARCHAR, tickets.opendate, 112) AS INT) BETWEEN {opened_fmt} AND {closed_fmt}"""
 
             df_depositos = pd.read_sql(query, eng_geocom)
 
@@ -462,7 +480,7 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     tickets.localid as localid,
                     tickets.pos as pos,
                     sheets.thenumber as documentnumber,
-                    ticketitems.id as position,
+                    -- ticketitems.id as position,
                     ticketitems.item,
                     ticketitems.umsignedquantity quantity,
                     CAST(ticketitems.amount as int) AS amount,
@@ -496,7 +514,8 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
                     AND tickets.documenttype = 'sale'
                     AND tickets.invoiceType = 'DGE'
                     AND CAST(tickets.ticketnumber AS INT) > {ticketnumber_opened}
-                    AND CAST(tickets.ticketnumber AS INT) < {ticketnumber_closed}
+                    AND CAST(tickets.ticketnumber AS INT) < {ticketnumber_closed}                    
+                    AND CAST(CONVERT(VARCHAR, tickets.opendate, 112) AS INT) BETWEEN {opened_fmt} AND {closed_fmt}
             """
 
             df_guias = pd.read_sql(query, eng_geocom)
@@ -519,12 +538,11 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             # Definir columnas fijas y adicionales para cada tabla
             columnas_comunes = [
                 'id', 'localid', 'pos', 'opened', 'closed',
-                'ticketnumberopened', 'ticketnumberclosed', 'z',
-                'sendstate', 'sendresponse', 'documentnumber'
+                'ticketnumberopened', 'ticketnumberclosed', 'z', 'documentnumber'
             ]
 
-            columnas_guias = columnas_comunes + ['date', 'hour', 'patent', 'localiddestino']
-            columnas_guias_detalle = columnas_comunes + ['position', 'item', 'quantity', 'amount']
+            columnas_guias = columnas_comunes + ['date', 'hour', 'patent', 'localiddestino', 'sendstate', 'sendresponse']
+            columnas_guias_detalle = columnas_comunes + ['item', 'quantity', 'amount']
 
             # Separar en cabecera y detalle
             df_guias_cabecera = df_guias[columnas_guias].drop_duplicates()
@@ -533,6 +551,28 @@ def ejecutar_etl(df_totals, IVA_RATE, modulos):
             df_guias_detalle = df_guias_detalle.copy()
             df_guias_detalle['netamount'] = round(df_guias_detalle['amount'] / (1 + IVA_RATE), 3)  # Neto (sin IVA)
             df_guias_detalle['taxamount'] = round(df_guias_detalle['amount'] - df_guias_detalle['netamount'], 3)  # IVA calculado
+            
+            
+            # Agrupamos los detalles y precios por campos comunes                        
+            campos_grupo_detalle = [
+                'id', 'localid', 'pos', 'opened', 'closed',
+                'ticketnumberopened', 'ticketnumberclosed',
+                'z', 'documentnumber', 'item'
+                # 'amount', 'netamount', 'taxamount'
+            ]
+            
+            # Agrupamos los detalles y precios
+            df_guias_detalle = df_guias_detalle.groupby(campos_grupo_detalle, as_index=False).agg({
+                'quantity': 'sum',
+                'amount': 'sum',
+                'netamount': 'sum',
+                'taxamount': 'sum'
+            }).round(3)
+            
+            # Eliminar registros donde quantity es 0
+            df_guias_detalle = df_guias_detalle[df_guias_detalle['quantity'] != 0]
+            
+            df_guias_detalle['position'] = df_guias_detalle.reset_index().index + 1            
 
             # Guardar en la base de datos
             df_guias_cabecera.to_sql(
@@ -585,8 +625,8 @@ def procesar_cierres(config):
             curr.pos,
             curr.opened,
             curr.closed,
-            prev.ticketsequencenumber AS ticketnumber_opened,
-            curr.ticketsequencenumber AS ticketnumber_closed,
+            COALESCE(prev.ticketsequencenumber, 0) AS ticketnumber_opened,
+            COALESCE(curr.ticketsequencenumber, 0) AS ticketnumber_closed,
             curr.znumber,
             curr.subclass,
             '0' state
@@ -598,7 +638,7 @@ def procesar_cierres(config):
             AND prev.opened = (
                 SELECT MAX(opened)
                 FROM totals
-                WHERE localid = curr.localid
+                WHERE localid = curr.localid    
                 AND pos = curr.pos
                 AND subclass = 'postotal'
                 AND opened < curr.opened
@@ -607,16 +647,38 @@ def procesar_cierres(config):
         {"AND curr.localid IN(" + str(LOCALID) +")" if LOCALID else ""}
         {"AND curr.pos = " + str(POS) if POS else ""}
         AND CAST(CONVERT(VARCHAR, curr.closed, 112) AS INT) BETWEEN {PAR_INI} AND {PAR_FIN}
+        AND curr.localid BETWEEN 100 AND 999
         ORDER BY curr.localid, curr.pos, curr.opened
     """
 
     df_totals = pd.read_sql_query(query_cierres, eng_geocom)
     
-    # Guardamos el detalle en la base de datos
-    df_totals.to_sql('cierres', eng_dw,if_exists='append', index=False, schema='modelo_ventas_rauco')
+    query_distinct = f"""
+        select distinct id
+        from DWCASTANO.modelo_ventas_rauco.cierres c 
+        where CAST(CONVERT(VARCHAR, closed, 112) AS INT) BETWEEN {PAR_INI} AND {PAR_FIN}
+        ;
+    """
+    
+    df_distinct = pd.read_sql_query(query_distinct, eng_dw)
+    
+    print(f">> Se encontraron un total de {len(df_totals)} cierres pre-filtro de duplicados.\n")
+    
+    df_dup = df_totals[df_totals['id'].isin(df_distinct['id'].tolist())]
+
+    print(f">> Cierres ya procesados: {len(df_dup)}. Se eliminan de la lista de cierres a procesar.\n")
+
+    df_totals = df_totals[~df_totals['id'].isin(df_distinct['id'].tolist())]
     
     print(f">> Se encontraron un total de {len(df_totals)} cierres para los filtros aplicados.\n")
 
+    if df_totals.empty:
+        print(">> No hay cierres para procesar. Saliendo...")
+        return
+    
+    # Guardamos el detalle en la base de datos
+    df_totals.to_sql('cierres', eng_dw,if_exists='append', index=False, schema='modelo_ventas_rauco')
+    
     ejecutar_etl(df_totals, IVA_RATE, MODULOS)
 
     print(">> Proceso finalizado.")
